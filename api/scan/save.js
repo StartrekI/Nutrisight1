@@ -19,12 +19,13 @@ export default async function handler(req) {
     const nutriGrade = d.class?.nutri?.g ?? null;
     const per = d.nutrition?.per ?? {};
     const topConcern = (d.concerns ?? [])[0] ?? null;
+    const topConcern2 = (d.concerns ?? [])[1] ?? null;
     const productName = (d.ing ?? [])[0]?.n ?? 'Unknown';
 
-    // Save scan summary
+    // Save scan summary with top 2 concerns
     await sql`
-      INSERT INTO scan_summaries (user_id, health_score, nova_class, nutri_grade, calories, protein, carbs, fat, sodium, sugar, sat_fat, trans_fat, top_concern, product_name)
-      VALUES (${userId}, ${healthScore}, ${novaClass}, ${nutriGrade}, ${per.kcal??0}, ${per.pro??0}, ${per.carb??0}, ${per.fat??0}, ${per.na??0}, ${per.sug??0}, ${per.sfat??0}, ${per.tfat??0}, ${topConcern}, ${productName})
+      INSERT INTO scan_summaries (user_id, health_score, nova_class, nutri_grade, calories, protein, carbs, fat, sodium, sugar, sat_fat, trans_fat, top_concern, top_concern_2, product_name)
+      VALUES (${userId}, ${healthScore}, ${novaClass}, ${nutriGrade}, ${per.kcal??0}, ${per.pro??0}, ${per.carb??0}, ${per.fat??0}, ${per.na??0}, ${per.sug??0}, ${per.sfat??0}, ${per.tfat??0}, ${topConcern}, ${topConcern2}, ${productName})
     `;
 
     // Save alternatives as recommendations (deduplicate)
