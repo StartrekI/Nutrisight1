@@ -23,11 +23,16 @@ export default async function handler(req) {
     const stats = statsRows[0] || { total_scans: 0, current_streak: 0, best_streak: 0, goals_met: 0, top_picks_count: 0 };
 
     // Weekly score — avg health_score from last 7 days
+    // Weekly score — weighted by calories: sum(cal * score) / sum(cal)
     const weeklyRows = await sql`
-      SELECT COALESCE(AVG(health_score), 0) as avg_score, COUNT(*) as scan_count
+      SELECT
+        COALESCE(SUM(calories * health_score), 0) as weighted_sum,
+        COALESCE(SUM(calories), 0) as total_cal,
+        COUNT(*) as scan_count
       FROM scan_summaries WHERE user_id = ${userId} AND scanned_at > NOW() - INTERVAL '7 days'
     `;
-    const weeklyScore = Math.round(weeklyRows[0].avg_score);
+    const totalCal = parseFloat(weeklyRows[0].total_cal);
+    const weeklyScore = totalCal > 0 ? Math.round(parseFloat(weeklyRows[0].weighted_sum) / totalCal) : 0;
     const weeklyTotalScans = parseInt(weeklyRows[0].scan_count);
 
     // Today's nutrition — sum ALL 8 nutrients from today's scans
