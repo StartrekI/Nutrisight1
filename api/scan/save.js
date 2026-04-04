@@ -28,12 +28,9 @@ export default async function handler(req) {
       VALUES (${userId}, ${healthScore}, ${novaClass}, ${nutriGrade}, ${per.kcal??0}, ${per.pro??0}, ${per.carb??0}, ${per.fat??0}, ${per.na??0}, ${per.sug??0}, ${per.sfat??0}, ${per.tfat??0}, ${topConcern}, ${topConcern2}, ${productName})
     `;
 
-    // Save alternatives as recommendations (deduplicate)
+    // Save alternatives as recommendations (single query per alt, no SELECT needed)
     for (const alt of (d.alts ?? []).slice(0, 3)) {
-      const exists = await sql`SELECT id FROM recommendations WHERE user_id=${userId} AND name=${alt.n} LIMIT 1`;
-      if (exists.length === 0) {
-        await sql`INSERT INTO recommendations (user_id, name, brand, score, nova, nutri, category) VALUES (${userId}, ${alt.n}, ${alt.b}, ${parseInt(alt.score)||0}, ${alt.nova}, ${alt.nutri}, ${alt.cat})`;
-      }
+      await sql`INSERT INTO recommendations (user_id, name, brand, score, nova, nutri, category) VALUES (${userId}, ${alt.n}, ${alt.b}, ${parseInt(alt.score)||0}, ${alt.nova}, ${alt.nutri}, ${alt.cat}) ON CONFLICT DO NOTHING`;
     }
 
     // Update user_stats

@@ -35,18 +35,18 @@ export default async function handler(req) {
     const weeklyScore = totalCal > 0 ? Math.round(parseFloat(weeklyRows[0].weighted_sum) / totalCal) : 0;
     const weeklyTotalScans = parseInt(weeklyRows[0].scan_count);
 
-    // Today's nutrition — sum ALL 8 nutrients from today's scans
+    // Today's nutrition — sum ALL 8 nutrients from today's scans (IST timezone)
     const todayRows = await sql`
       SELECT COALESCE(SUM(calories),0) as cal, COALESCE(SUM(protein),0) as pro, COALESCE(SUM(carbs),0) as carbs,
              COALESCE(SUM(fat),0) as fat, COALESCE(SUM(sodium),0) as na, COALESCE(SUM(sugar),0) as sug,
              COALESCE(SUM(sat_fat),0) as sfat, COALESCE(SUM(trans_fat),0) as tfat, COUNT(*) as cnt
-      FROM scan_summaries WHERE user_id = ${userId} AND scanned_at::date = CURRENT_DATE
+      FROM scan_summaries WHERE user_id = ${userId} AND (scanned_at AT TIME ZONE 'Asia/Kolkata')::date = (NOW() AT TIME ZONE 'Asia/Kolkata')::date
     `;
     const today = todayRows[0];
 
-    // Weekly scan activity — count per day of week (last 7 days)
+    // Weekly scan activity — count per day of week (last 7 days, IST timezone)
     const activityRows = await sql`
-      SELECT EXTRACT(DOW FROM scanned_at) as dow, COUNT(*) as cnt
+      SELECT EXTRACT(DOW FROM scanned_at AT TIME ZONE 'Asia/Kolkata') as dow, COUNT(*) as cnt
       FROM scan_summaries WHERE user_id = ${userId} AND scanned_at > NOW() - INTERVAL '7 days'
       GROUP BY dow ORDER BY dow
     `;
@@ -78,7 +78,7 @@ export default async function handler(req) {
     const hour = new Date().getUTCHours() + 5.5; // IST
     const greeting = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
 
-    return Response.json({
+    return new Response(JSON.stringify({
       success: true,
       greeting,
       user: { name: user.name, email: user.email },
@@ -105,6 +105,11 @@ export default async function handler(req) {
       recommendations: recs,
       weekActivity: monSun,
       weekTotalScans: weeklyTotalScans,
+    }), {
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'private, max-age=120',
+      }
     });
   } catch (e) {
     return Response.json({ error: e.message }, { status: 500 });
