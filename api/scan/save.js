@@ -28,10 +28,11 @@ export default async function handler(req) {
       VALUES (${userId}, ${healthScore}, ${novaClass}, ${nutriGrade}, ${per.kcal??0}, ${per.pro??0}, ${per.carb??0}, ${per.fat??0}, ${per.na??0}, ${per.sug??0}, ${per.sfat??0}, ${per.tfat??0}, ${topConcern}, ${topConcern2}, ${productName})
     `;
 
-    // Save alternatives as recommendations (single query per alt, no SELECT needed)
-    for (const alt of (d.alts ?? []).slice(0, 3)) {
-      await sql`INSERT INTO recommendations (user_id, name, brand, score, nova, nutri, category) VALUES (${userId}, ${alt.n}, ${alt.b}, ${parseInt(alt.score)||0}, ${alt.nova}, ${alt.nutri}, ${alt.cat}) ON CONFLICT DO NOTHING`;
-    }
+    // Save alternatives as recommendations — run up to 3 inserts concurrently
+    // (fixes the prior N+1 sequential pattern; still ON CONFLICT DO NOTHING)
+    await Promise.all((d.alts ?? []).slice(0, 3).map(alt =>
+      sql`INSERT INTO recommendations (user_id, name, brand, score, nova, nutri, category) VALUES (${userId}, ${alt.n}, ${alt.b}, ${parseInt(alt.score)||0}, ${alt.nova}, ${alt.nutri}, ${alt.cat}) ON CONFLICT DO NOTHING`
+    ));
 
     // Update user_stats
     const today = new Date().toISOString().split('T')[0];
@@ -64,6 +65,11 @@ export default async function handler(req) {
 
     return Response.json({ success: true });
   } catch (e) {
-    return Response.json({ error: e.message }, { status: 500 });
+    const correlationId = crypto.randomUUID();
+    console.error(`[${correlationId}] /api/scan/save failed:`, e);
+    return Response.json(
+      { error: 'Request failed, please try again.', correlationId },
+      { status: 500 }
+    );
   }
 }

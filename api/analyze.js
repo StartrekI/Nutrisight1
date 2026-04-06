@@ -56,9 +56,11 @@ export default async function handler(req) {
     });
 
     if (!claudeResponse.ok) {
+      const correlationId = crypto.randomUUID();
       const errBody = await claudeResponse.text();
+      console.error(`[${correlationId}] Claude API error (${claudeResponse.status}):`, errBody);
       return Response.json(
-        { error: `Claude API error (${claudeResponse.status}): ${errBody}` },
+        { error: 'Analysis service unavailable, please try again.', correlationId },
         { status: 502 }
       );
     }
@@ -73,8 +75,10 @@ export default async function handler(req) {
       },
     });
   } catch (err) {
+    const correlationId = crypto.randomUUID();
+    console.error(`[${correlationId}] /api/analyze failed:`, err);
     return Response.json(
-      { error: err.message || 'Internal server error' },
+      { error: 'Request failed, please try again.', correlationId },
       { status: 500 }
     );
   }

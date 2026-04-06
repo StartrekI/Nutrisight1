@@ -38,9 +38,11 @@ export default async function handler(req) {
     );
 
     if (!gcvResponse.ok) {
+      const correlationId = crypto.randomUUID();
       const errBody = await gcvResponse.text();
+      console.error(`[${correlationId}] Vision API error (${gcvResponse.status}):`, errBody);
       return Response.json(
-        { success: false, error: `Vision API error (${gcvResponse.status}): ${errBody}` },
+        { success: false, error: 'OCR service unavailable, please try again.', correlationId },
         { status: 502 }
       );
     }
@@ -49,8 +51,10 @@ export default async function handler(req) {
     const firstResponse = data.responses?.[0];
 
     if (firstResponse?.error) {
+      const correlationId = crypto.randomUUID();
+      console.error(`[${correlationId}] Vision API returned error:`, firstResponse.error);
       return Response.json(
-        { success: false, error: firstResponse.error.message || 'Vision API error' },
+        { success: false, error: 'OCR service unavailable, please try again.', correlationId },
         { status: 502 }
       );
     }
@@ -71,8 +75,10 @@ export default async function handler(req) {
 
     return Response.json({ success: true, text, wordCount });
   } catch (err) {
+    const correlationId = crypto.randomUUID();
+    console.error(`[${correlationId}] /api/ocr failed:`, err);
     return Response.json(
-      { success: false, error: err.message || 'Internal server error' },
+      { success: false, error: 'Request failed, please try again.', correlationId },
       { status: 500 }
     );
   }

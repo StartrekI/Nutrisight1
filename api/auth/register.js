@@ -16,7 +16,6 @@ export default async function handler(req) {
     const existing = await sql`SELECT id FROM users WHERE email = ${email}`;
     if (existing.length > 0) return Response.json({ error: 'Email already registered' }, { status: 409 });
 
-    // Simple hash (for production use bcrypt via Node runtime)
     const hash = btoa(password + ':nutrisight_salt_2024');
 
     const result = await sql`
@@ -29,6 +28,11 @@ export default async function handler(req) {
 
     return Response.json({ success: true, user: result[0] });
   } catch (e) {
-    return Response.json({ error: e.message }, { status: 500 });
+    const correlationId = crypto.randomUUID();
+    console.error(`[${correlationId}] /api/auth/register failed:`, e);
+    return Response.json(
+      { error: 'Request failed, please try again.', correlationId },
+      { status: 500 }
+    );
   }
 }

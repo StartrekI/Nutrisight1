@@ -18,6 +18,11 @@ export default async function handler(req) {
 
     return Response.json({ success: true, user: rows[0] });
   } catch (e) {
-    return Response.json({ error: e.message }, { status: 500 });
+    const correlationId = crypto.randomUUID();
+    console.error(`[${correlationId}] /api/auth/login failed:`, e);
+    return Response.json(
+      { error: 'Request failed, please try again.', correlationId },
+      { status: 500 }
+    );
   }
 }
